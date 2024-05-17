@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ex</title>
+</head>
+<body>
+    <xmp>
+
+
+
+
+from sklearn.model_selection import train_test_split, KFold, cross_val_predict
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.impute import SimpleImputer
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, roc_curve
+from sklearn.svm import SVC
+from sklearn.naive_bayes import GaussianNB
+import sklearn.tree as tree
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import Perceptron, LogisticRegression, LinearRegression
+from sklearn.neural_network import MLPClassifier
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
+
+import pandas as pd
+import seaborn as sns
+
+# Load the dataset (replace this with your dataset)
+data = pd.read_csv('ObesityDataSet_raw_and_data_sinthetic.csv')
+
+# 1. Display the first few rows of the dataset
+print("First few rows of the dataset:")
+print(data.head())
+
+data
+
+# 2. Display information about the dataset
+print("\nInformation about the dataset:")
+print(data.info())
+
+# 3. Display summary statistics
+print("\nSummary statistics of the dataset:")
+data.describe()
+
+# 4. Check for null values
+print("\nChecking for null values in the dataset:")
+print(data.isnull().sum())
+
+# 5. Display the shape of the dataset
+print("\nShape of the dataset:")
+print(data.shape)
+
+# 6. Display column names
+print("\nColumn names:")
+print(data.columns)
+
+data.dtypes
+
+"""**EDA**"""
+
+# Box plot of 'Age' by 'Gender'
+sns.boxplot(x='Gender', y='Age', data=data)
+plt.title('Box Plot of Age by Gender')
+plt.show()
+
+# Histogram of 'Age'
+sns.histplot(data['Age'].dropna(), bins=30)
+plt.title('Histogram of Age')
+plt.show()
+
+# Histogram of 'Weight'
+sns.histplot(data['Weight'].dropna(), bins=30)
+plt.title('Histogram of Weight')
+plt.show()
+
+# Pairplot of selected numerical features
+sns.pairplot(data[['Age', 'Height', 'Weight']], diag_kind='kde')
+plt.title('Pairplot of Age, Height, and Weight')
+plt.show()
+
+# Compute the correlation matrix
+numerical_cols = data.select_dtypes(include=['int64', 'float64']).columns
+corr_matrix = data[numerical_cols].corr()
+
+# Create a heatmap
+sns.heatmap(corr_matrix, annot=True, cmap='coolwarm')
+plt.title('Correlation Matrix')
+plt.show()
+
+# Count plot of 'Gender'
+sns.countplot(x='Gender', data=data)
+plt.title('Count of Individuals by Gender')
+plt.show()
+
+# Count plot of 'family_his'
+sns.countplot(x='family_history_with_overweight', data=data)
+plt.title('Count of Individuals by Family History')
+plt.show()
+
+# Separate numerical and categorical columns
+numerical_cols = data.select_dtypes(include=['int64', 'float64']).columns
+categorical_cols = data.select_dtypes(include=['object', 'category']).columns
+numerical_cols
+
+# Handle missing values for numerical columns
+numerical_imputer = SimpleImputer(strategy='mean')
+data[numerical_cols] = numerical_imputer.fit_transform(data[numerical_cols])
+
+data
+
+# Define the target column
+target = 'NObeyesdad'
+# Separate features and target
+X = data.drop(columns=[target])
+y = data[target]
+
+# Separate numerical and categorical columns
+numerical_cols = X.select_dtypes(include=['int64', 'float64']).columns
+categorical_cols = X.select_dtypes(include=['object', 'category']).columns
+
+# Handle missing values for numerical columns
+numerical_imputer = SimpleImputer(strategy='mean')
+X[numerical_cols] = numerical_imputer.fit_transform(X[numerical_cols])
+
+# Handle missing values for categorical columns and apply OneHotEncoder
+categorical_imputer = SimpleImputer(strategy='most_frequent')
+X[categorical_cols] = categorical_imputer.fit_transform(X[categorical_cols])
+
+# Apply OneHotEncoder to the features
+encoder = OneHotEncoder(sparse=False, drop='first')
+encoded_categorical = encoder.fit_transform(X[categorical_cols])
+
+# Create DataFrame with the encoded categorical columns
+encoded_categorical_df = pd.DataFrame(encoded_categorical, columns=encoder.get_feature_names_out(categorical_cols))
+
+# Combine the numerical columns and the encoded categorical columns
+data = pd.concat([pd.DataFrame(X[numerical_cols]), encoded_categorical_df, pd.DataFrame(data[target])], axis=1)
+
+# Display basic information about the dataset
+print(data.info())
+print(data.describe())
+print(data.isnull().sum())
+
+# Check types of each column
+print(data.dtypes)
+
+data
+
+import pandas as pd
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.feature_selection import SelectKBest, f_classif
+from sklearn.decomposition import PCA
+
+# Separate features and target
+X = data.drop(columns=[target])
+y = data[target]
+
+# Standardize the numerical features
+scaler = StandardScaler()
+X[numerical_cols] = scaler.fit_transform(X[numerical_cols])
+
+# Feature Selection using SelectKBest
+selector = SelectKBest(score_func=f_classif, k=5)
+X_new = selector.fit_transform(X, y)
+
+pca = PCA(n_components=2)
+X_pca = pca.fit_transform(X_new)
+
+# Display the resulting PCA features
+print("PCA features shape:", X_pca.shape)
+
+X_train, X_test, y_train, y_test = train_test_split(X_pca, y, test_size=0.2, random_state=42)
+
+import pandas as pd
+import seaborn as sns
+from sklearn.model_selection import train_test_split, KFold, cross_val_score
+from sklearn.preprocessing import StandardScaler
+from sklearn.feature_selection import SelectKBest, f_classif
+from sklearn.decomposition import PCA
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, roc_curve, roc_auc_score
+import matplotlib.pyplot as plt
+# SVM Model with k-fold cross-validation
+svm_model = SVC(probability=True)
+kf = KFold(n_splits=5, shuffle=True, random_state=42)
+cv_results = cross_val_score(svm_model, X_train, y_train, cv=kf, scoring='accuracy')
+
+svm_model.fit(X_train, y_train)
+y_pred = svm_model.predict(X_test)
+
+print("SVM Metrics:")
+print(f'Accuracy: {accuracy_score(y_test, y_pred):.4f}')
+print(f'Precision: {precision_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'Recall: {recall_score(y_test, y_pred,  average = "weighted"):.4f}')
+print(f'F1 Score: {f1_score(y_test, y_pred,  average = "weighted"):.4f}')
+print(f'Confusion Matrix:\n{confusion_matrix(y_test, y_pred)}')
+
+from sklearn.naive_bayes import GaussianNB
+
+# Naive Bayes Model with k-fold cross-validation
+nb_model = GaussianNB()
+kf = KFold(n_splits=5, shuffle=True, random_state=42)
+cv_results = cross_val_score(nb_model, X_train, y_train, cv=kf, scoring='accuracy')
+
+nb_model.fit(X_train, y_train)
+y_pred = nb_model.predict(X_test)
+
+print("Naive Bayes Metrics:")
+print(f'Accuracy: {accuracy_score(y_test, y_pred):.4f}')
+print(f'Precision: {precision_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'Recall: {recall_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'F1 Score: {f1_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'Confusion Matrix:\n{confusion_matrix(y_test, y_pred)}')
+print(f'Mean cross-validation accuracy: {cv_results.mean():.4f}')
+
+from sklearn.tree import DecisionTreeClassifier
+
+# Decision Tree Model with k-fold cross-validation
+dt_model = DecisionTreeClassifier()
+kf = KFold(n_splits=5, shuffle=True, random_state=42)
+cv_results = cross_val_score(dt_model, X_train, y_train, cv=kf, scoring='accuracy')
+
+dt_model.fit(X_train, y_train)
+y_pred = dt_model.predict(X_test)
+
+print("Decision Tree Metrics:")
+print(f'Accuracy: {accuracy_score(y_test, y_pred):.4f}')
+print(f'Precision: {precision_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'Recall: {recall_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'F1 Score: {f1_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'Confusion Matrix:\n{confusion_matrix(y_test, y_pred)}')
+print(f'Mean cross-validation accuracy: {cv_results.mean():.4f}')
+
+fig = plt.figure(figsize=(20,15))
+tree.plot_tree(dt_model);
+
+from sklearn.ensemble import RandomForestClassifier
+
+# Random Forest Model with k-fold cross-validation
+rf_model = RandomForestClassifier()
+kf = KFold(n_splits=5, shuffle=True, random_state=42)
+cv_results = cross_val_score(rf_model, X_train, y_train, cv=kf, scoring='accuracy')
+
+rf_model.fit(X_train, y_train)
+y_pred = rf_model.predict(X_test)
+
+print("Random Forest Metrics:")
+print(f'Accuracy: {accuracy_score(y_test, y_pred):.4f}')
+print(f'Precision: {precision_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'Recall: {recall_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'F1 Score: {f1_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'Confusion Matrix:\n{confusion_matrix(y_test, y_pred)}')
+print(f'Mean cross-validation accuracy: {cv_results.mean():.4f}')
+
+from sklearn.linear_model import Perceptron
+
+# Perceptron Model with k-fold cross-validation
+perceptron_model = Perceptron()
+kf = KFold(n_splits=5, shuffle=True, random_state=42)
+cv_results = cross_val_score(perceptron_model, X_train, y_train, cv=kf, scoring='accuracy')
+
+perceptron_model.fit(X_train, y_train)
+y_pred = perceptron_model.predict(X_test)
+
+print("Perceptron Metrics:")
+print(f'Accuracy: {accuracy_score(y_test, y_pred):.4f}')
+print(f'Precision: {precision_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'Recall: {recall_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'F1 Score: {f1_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'Confusion Matrix:\n{confusion_matrix(y_test, y_pred)}')
+print(f'Mean cross-validation accuracy: {cv_results.mean():.4f}')
+
+from sklearn.neural_network import MLPClassifier
+
+# Multi-Layer Perceptron Model with k-fold cross-validation
+mlp_model = MLPClassifier(random_state=42)
+kf = KFold(n_splits=5, shuffle=True, random_state=42)
+cv_results = cross_val_score(mlp_model, X_train, y_train, cv=kf, scoring='accuracy')
+
+mlp_model.fit(X_train, y_train)
+y_pred = mlp_model.predict(X_test)
+
+print("Multi-Layer Perceptron (MLP) Metrics:")
+print(f'Accuracy: {accuracy_score(y_test, y_pred):.4f}')
+print(f'Precision: {precision_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'Recall: {recall_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'F1 Score: {f1_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'Confusion Matrix:\n{confusion_matrix(y_test, y_pred)}')
+print(f'Mean cross-validation accuracy: {cv_results.mean():.4f}')
+
+from sklearn.neighbors import KNeighborsClassifier
+import numpy as np
+# Using the elbow method to find the best k
+error_rate = []
+for i in range(1, 40):
+    knn = KNeighborsClassifier(n_neighbors=i)
+    knn.fit(X_train, y_train)
+    pred_i = knn.predict(X_test)
+    error_rate.append(np.mean(pred_i != y_test))
+
+plt.figure(figsize=(10, 6))
+plt.plot(range(1, 40), error_rate, color='blue', linestyle='dashed', marker='o',
+         markerfacecolor='red', markersize=10)
+plt.title('Error Rate vs. K Value')
+plt.xlabel('K')
+plt.ylabel('Error Rate')
+plt.show()
+
+# Choosing k=3 based on the elbow plot
+knn_model = KNeighborsClassifier(n_neighbors=3)
+kf = KFold(n_splits=5, shuffle=True, random_state=42)
+cv_results = cross_val_score(knn_model, X_train, y_train, cv=kf, scoring='accuracy')
+
+knn_model.fit(X_train, y_train)
+y_pred = knn_model.predict(X_test)
+
+print("K-Nearest Neighbors (KNN) Metrics:")
+print(f'Accuracy: {accuracy_score(y_test, y_pred):.4f}')
+print(f'Precision: {precision_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'Recall: {recall_score(y_test, y_pred, average = "weighted" ):.4f}')
+print(f'F1 Score: {f1_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'Confusion Matrix:\n{confusion_matrix(y_test, y_pred)}')
+print(f'Mean cross-validation accuracy: {cv_results.mean():.4f}')
+
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+
+# Elbow Method for KMeans
+sse = []
+for k in range(1, 11):
+    kmeans = KMeans(n_clusters=k, random_state=42)
+    kmeans.fit(X_pca)
+    sse.append(kmeans.inertia_)
+
+plt.figure(figsize=(10, 6))
+plt.plot(range(1, 11), sse, marker='o')
+plt.title('Elbow Method for KMeans')
+plt.xlabel('Number of clusters')
+plt.ylabel('SSE')
+plt.show()
+
+# Choosing k=2 based on the elbow plot
+kmeans = KMeans(n_clusters=2, random_state=42)
+kmeans.fit(X_pca)
+y_kmeans = kmeans.predict(X_pca)
+sil_score = silhouette_score(X_pca, y_kmeans)
+print(f'Silhouette Score: {sil_score:.4f}')
+
+from sklearn.linear_model import LogisticRegression
+
+# Logistic Regression Model with k-fold cross-validation
+logistic_model = LogisticRegression()
+kf = KFold(n_splits=5, shuffle=True, random_state=42)
+cv_results = cross_val_score(logistic_model, X_train, y_train, cv=kf, scoring='accuracy')
+
+logistic_model.fit(X_train, y_train)
+y_pred = logistic_model.predict(X_test)
+
+print("Logistic Regression Metrics:")
+print(f'Accuracy: {accuracy_score(y_test, y_pred):.4f}')
+print(f'Precision: {precision_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'Recall: {recall_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'F1 Score: {f1_score(y_test, y_pred, average = "weighted"):.4f}')
+print(f'Confusion Matrix:\n{confusion_matrix(y_test, y_pred)}')
+print(f'Mean cross-validation accuracy: {cv_results.mean():.4f}')
+
+'''from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+
+# Linear Regression Model with k-fold cross-validation
+y_numeric = data[target]
+X_train_lr, X_test_lr, y_train_lr, y_test_lr = train_test_split(X_pca, y_numeric, test_size=0.2, random_state=42)
+lr_model = LinearRegression()
+kf = KFold(n_splits=5, shuffle=True, random_state=42)
+cv_results = cross_val_score(lr_model, X_train_lr, y_train_lr, cv=kf, scoring='r2')
+
+lr_model.fit(X_train_lr, y_train_lr)
+y_pred_lr = lr_model.predict(X_test_lr)
+
+print("Linear Regression Metrics:")
+print(f'Accuracy: {lr_model.score(X_test_lr, y_test_lr):.4f}')
+print(f'R2 Score: {r2_score(y_test_lr, y_pred_lr):.4f}')
+print(f'Mean cross-validation R2 score: {cv_results.mean():.4f}')
+'''
+
+'''print(f'ROC AUC: {roc_auc_score(y_test, dt_model.predict_proba(X_test)[:, 1]):.4f}')
+fpr, tpr, _ = roc_curve(y_test, dt_model.predict_proba(X_test)[:, 1])
+plt.plot(fpr, tpr, label="Decision Tree")
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('ROC Curve')
+plt.legend()
+plt.show()
+'''
+
+ 
+</xmp>
+</body>
+</html>
